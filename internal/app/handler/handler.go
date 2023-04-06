@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"strings"
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -19,10 +18,11 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 
-func getIdFromBody(s string) string {
-	p := strings.Split(s, "/")
-	return p[len(p)-1]
-}
+//for future
+//func getIdFromBody(s string) string {
+//	p := strings.Split(s, "/")
+//	return p[len(p)-1]
+//}
 
 type StorageHandler struct {
 	storage storage.Storage
