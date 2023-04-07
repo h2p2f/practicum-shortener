@@ -9,6 +9,7 @@ import (
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"log"
 	"net/http"
+	"strings"
 )
 
 var runAddr string
@@ -29,6 +30,8 @@ func main() {
 
 	flag.StringVar(&runAddr, "a", "localhost:8080", "address to run server on")
 	flag.StringVar(&resultAddr, "b", "localhost:8080", "link to return")
+	slicetAddr := strings.Split(resultAddr, "/")
+	resultAddr = slicetAddr[len(slicetAddr)-1]
 	flag.Parse()
 
 	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(runAddr, resultAddr)))
