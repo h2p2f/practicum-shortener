@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/h2p2f/practicum-shortener/internal/app/config"
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"io/ioutil"
 	"math/rand"
@@ -26,19 +27,22 @@ func RandStringBytes(n int) string {
 
 type StorageHandler struct {
 	storage storage.Storage
+	config  config.Config
 }
 
-func NewStorageHandler(storage storage.Storage) *StorageHandler {
+func NewStorageHandler(storage storage.Storage, config config.Config) *StorageHandler {
 	return &StorageHandler{
 		storage: storage,
+		config:  config,
 	}
 }
-func (s StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) {
+func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	shortLink := "http://localhost:8080/"
+
+	shortLink := "http://" + s.config.GetResultAddress() + "/"
 	requestBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -63,7 +67,7 @@ func (s StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (s StorageHandler) GetLinkByIDHandler(w http.ResponseWriter, r *http.Request) {
+func (s *StorageHandler) GetLinkByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
