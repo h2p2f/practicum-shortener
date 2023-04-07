@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"github.com/go-chi/chi/v5"
+	"github.com/h2p2f/practicum-shortener/internal/app/config"
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"net/http"
 	"net/http/httptest"
@@ -54,7 +55,9 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.link))
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
-			handlers := NewStorageHandler(s)
+			c := config.NewServerConfig()
+			c.SetConfig("localhost:8080", "localhost:8080")
+			handlers := NewStorageHandler(s, c)
 			if tt.method == http.MethodPost {
 				r.Post("/", handlers.PostLinkHandler)
 			} else {
@@ -117,7 +120,9 @@ func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.link))
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
-			handlers := NewStorageHandler(s)
+			c := config.NewServerConfig()
+			c.SetConfig("localhost:8080", "localhost:8080")
+			handlers := NewStorageHandler(s, c)
 			req.Header.Set("Content-Type", "text/plain")
 			postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(tt.link)))
 			w := httptest.NewRecorder()
