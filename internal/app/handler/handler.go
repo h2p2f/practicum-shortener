@@ -42,7 +42,7 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	shortLink := "http://" + s.config.GetResultAddress() + "/"
+	shortLink := s.config.GetResultAddress() + "/"
 	requestBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
