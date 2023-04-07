@@ -32,14 +32,16 @@ func main() {
 	flag.StringVar(&runAddr, "a", "localhost:8080", "address to run server on")
 	flag.StringVar(&resultAddr, "b", "localhost:8080", "link to return")
 	flag.Parse()
-	sliceAddr := strings.Split(resultAddr, "//")
-	resultAddr = sliceAddr[len(sliceAddr)-1]
+
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
 		runAddr = envRunAddr
 	}
 	if envResultAddr := os.Getenv("BASE_URL"); envResultAddr != "" {
 		resultAddr = envResultAddr
 	}
+
+	sliceAddr := strings.Split(resultAddr, "//")
+	resultAddr = sliceAddr[len(sliceAddr)-1]
 
 	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(runAddr, resultAddr)))
 }
