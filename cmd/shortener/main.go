@@ -9,6 +9,7 @@ import (
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -33,6 +34,12 @@ func main() {
 	flag.Parse()
 	sliceAddr := strings.Split(resultAddr, "//")
 	resultAddr = sliceAddr[len(sliceAddr)-1]
+	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
+		runAddr = envRunAddr
+	}
+	if envResultAddr := os.Getenv("BASE_URL"); envResultAddr != "" {
+		resultAddr = envResultAddr
+	}
 
 	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(runAddr, resultAddr)))
 }
