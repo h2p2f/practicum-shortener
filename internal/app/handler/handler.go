@@ -2,15 +2,15 @@ package handler
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/h2p2f/practicum-shortener/internal/app/config"
-	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 )
 
+//string of letters for random string generation
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+//random string generator
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
@@ -24,60 +24,93 @@ func RandStringBytes(n int) string {
 //	p := strings.Split(s, "/")
 //	return p[len(p)-1]
 //}
-
-type StorageHandler struct {
-	storage storage.Storage
-	config  config.Config
+//interface for storage
+type Storager interface {
+	Get(id string) (string, bool)
+	Set(id, link string)
+	Delete(id string)
+	List() map[string]string
+	Count() int
 }
 
-func NewStorageHandler(storage storage.Storage, config config.Config) *StorageHandler {
+//interface for config
+type Configer interface {
+	SetConfig(s, r string)
+	GetConfig() (string, string)
+	GetResultAddress() string
+}
+
+//handler for storage with config
+type StorageHandler struct {
+	storage Storager
+	config  Configer
+}
+
+//constructor of handler
+func NewStorageHandler(storage Storager, config Configer) *StorageHandler {
 	return &StorageHandler{
 		storage: storage,
 		config:  config,
 	}
 }
+
+//handler for get short link by request
 func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) {
+	//check method
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
+	//get config, set up mask for short link
 	shortLink := "http://" + s.config.GetResultAddress() + "/"
+	//read body
 	requestBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	//check body
 	if len(requestBody) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	id := RandStringBytes(8)
-	if _, ok := s.storage.Get(id); ok {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	} else {
-		s.storage.Set(id, string(requestBody))
-		w.WriteHeader(http.StatusCreated)
-		_, err := w.Write([]byte(shortLink + id))
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+	//generate random string and check if it is unique
+	for {
+		id := RandStringBytes(8)
+		if _, ok := s.storage.Get(id); ok {
+			//if not unique, generate new
+			continue
+		} else {
+			//if unique, write to storage and return short link
+			s.storage.Set(id, string(requestBody))
+			w.WriteHeader(http.StatusCreated)
+			_, err := w.Write([]byte(shortLink + id))
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			//break loop
+			break
 		}
 	}
 }
 
+// GetLinkByIDHandler handler for get link by id
 func (s *StorageHandler) GetLinkByIDHandler(w http.ResponseWriter, r *http.Request) {
+	//check method
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	//get id from url
 	id := chi.URLParam(r, "id")
-
+	//check if id is in storage
 	if link, ok := s.storage.Get(id); ok {
+		//if yes, return 307 and redirect
 		w.Header().Set("Location", link)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	} else {
+		//if not, return 404
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }

@@ -1,11 +1,5 @@
 package config
 
-type Config interface {
-	SetConfig(s, r string) ServerConfig
-	GetConfig() ServerConfig
-	GetResultAddress() string
-}
-
 type ServerConfig struct {
 	serverAddress string
 	resultAddress string
@@ -18,14 +12,13 @@ func NewServerConfig() *ServerConfig {
 	}
 }
 
-func (c *ServerConfig) SetConfig(s, r string) ServerConfig {
+func (c *ServerConfig) SetConfig(s, r string) {
 	c.serverAddress = s
 	c.resultAddress = r
-	return *c
 }
 
-func (c *ServerConfig) GetConfig() ServerConfig {
-	return *c
+func (c *ServerConfig) GetConfig() (string, string) {
+	return c.serverAddress, c.resultAddress
 }
 
 func (c *ServerConfig) GetResultAddress() string {
