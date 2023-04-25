@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/h2p2f/practicum-shortener/internal/app/config"
 	"github.com/h2p2f/practicum-shortener/internal/app/handler"
+	"github.com/h2p2f/practicum-shortener/internal/app/logger"
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"log"
 	"net/http"
@@ -28,8 +29,9 @@ func shortenerRouter(s, r string) chi.Router {
 	//create a router and add handlers
 	handlers := handler.NewStorageHandler(stor, conf)
 	c := chi.NewRouter()
-	c.Post("/", handlers.PostLinkHandler)
-	c.Get("/{id}", handlers.GetLinkByIDHandler)
+	loggedRouter := c.With(logger.WithLogging)
+	loggedRouter.Post("/", handlers.PostLinkHandler)
+	loggedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
 	return c
 }
 func main() {
@@ -47,6 +49,9 @@ func main() {
 	//cut protocol from resultAddr
 	sliceAddr := strings.Split(resultAddr, "//")
 	resultAddr = sliceAddr[len(sliceAddr)-1]
+	if err := logger.InitLogger("info"); err != nil {
+		log.Fatal(err)
+	}
 	//start server
 	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(runAddr, resultAddr)))
 }
