@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/go-chi/chi/v5"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 )
@@ -64,7 +64,7 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 	//get config, set up mask for short link
 	shortLink := "http://" + s.config.GetResultAddress() + "/"
 	//read body
-	requestBody, err := ioutil.ReadAll(r.Body)
+	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
