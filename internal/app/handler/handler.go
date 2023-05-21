@@ -165,6 +165,7 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 			//if unique, write to storage and return short link
 			s.storage.Set(id, origin.Link)
 			result.Link = sLink + id
+			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			res, err := json.Marshal(result)
 			_, err = w.Write(res)
