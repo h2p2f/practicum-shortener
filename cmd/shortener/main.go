@@ -29,10 +29,11 @@ func shortenerRouter(s, r string) chi.Router {
 	//create a router and add handlers
 	handlers := handler.NewStorageHandler(stor, conf)
 	c := chi.NewRouter()
-	loggedRouter := c.With(logger.WithLogging)
-	loggedRouter.Post("/", handlers.PostLinkHandler)
-	loggedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
-	loggedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
+	//loggedRouter := c.With(logger.WithLogging)
+	loggedAndZippedRouter := c.With(logger.WithLogging, handler.GzipHanle)
+	loggedAndZippedRouter.Post("/", handlers.PostLinkHandler)
+	loggedAndZippedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
+	loggedAndZippedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
 	return c
 }
 func main() {
