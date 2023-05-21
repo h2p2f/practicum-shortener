@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"math/rand"
@@ -52,6 +54,14 @@ func NewStorageHandler(storage Storager, config Configer) *StorageHandler {
 		storage: storage,
 		config:  config,
 	}
+}
+
+type originLink struct {
+	Link string `json:"url"`
+}
+
+type shortLink struct {
+	Link string `json:"result"`
 }
 
 //handler for get short link by request
@@ -113,4 +123,63 @@ func (s *StorageHandler) GetLinkByIDHandler(w http.ResponseWriter, r *http.Reque
 		//if not, return 404
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Request) {
+	//check method
+
+	var buf bytes.Buffer
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Header.Get("Content-Type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	sLink := "http://" + s.config.GetResultAddress() + "/"
+	//read body
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	//check body
+	if buf.Len() == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	origin := originLink{Link: ""}
+	err = json.Unmarshal(buf.Bytes(), &origin)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	result := shortLink{""}
+	//generate random string and check if it is unique
+	for {
+		id := RandStringBytes(8)
+		if _, ok := s.storage.Get(id); ok {
+			//if not unique, generate new
+			continue
+		} else {
+			//if unique, write to storage and return short link
+			s.storage.Set(id, origin.Link)
+			result.Link = sLink + id
+			w.WriteHeader(http.StatusCreated)
+			res, err := json.Marshal(result)
+			_, err = w.Write(res)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			//break loop
+			break
+		}
+	}
+
+	//if err != nil {
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
+
 }

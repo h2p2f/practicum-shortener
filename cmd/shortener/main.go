@@ -32,6 +32,7 @@ func shortenerRouter(s, r string) chi.Router {
 	loggedRouter := c.With(logger.WithLogging)
 	loggedRouter.Post("/", handlers.PostLinkHandler)
 	loggedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
+	loggedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
 	return c
 }
 func main() {
