@@ -9,10 +9,10 @@ import (
 	"net/http"
 )
 
-//string of letters for random string generation
+// string of letters for random string generation
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-//random string generator
+// random string generator
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
@@ -21,12 +21,14 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 
-//for future
-//func getIdFromBody(s string) string {
-//	p := strings.Split(s, "/")
-//	return p[len(p)-1]
-//}
-//interface for storage
+// for future
+//
+//	func getIdFromBody(s string) string {
+//		p := strings.Split(s, "/")
+//		return p[len(p)-1]
+//	}
+//
+// interface for storage
 type Storager interface {
 	Get(id string) (string, bool)
 	Set(id, link string)
@@ -35,20 +37,20 @@ type Storager interface {
 	Count() int
 }
 
-//interface for config
+// interface for config
 type Configer interface {
 	SetConfig(s, r string)
 	GetConfig() (string, string)
 	GetResultAddress() string
 }
 
-//handler for storage with config
+// handler for storage with config
 type StorageHandler struct {
 	storage Storager
 	config  Configer
 }
 
-//constructor of handler
+// constructor of handler
 func NewStorageHandler(storage Storager, config Configer) *StorageHandler {
 	return &StorageHandler{
 		storage: storage,
@@ -64,7 +66,7 @@ type shortLink struct {
 	Link string `json:"result"`
 }
 
-//handler for get short link by request
+// handler for get short link by request
 func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) {
 	//check method
 	if r.Method != http.MethodPost {
@@ -181,10 +183,5 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 			break
 		}
 	}
-
-	//if err != nil {
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	return
-	//}
 
 }
