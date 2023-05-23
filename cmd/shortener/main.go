@@ -65,7 +65,8 @@ func main() {
 	if err := logger.InitLogger("info"); err != nil {
 		log.Fatal(err)
 	}
-
+	logger.Log.Sugar().Infof("Running Shortener. Server address: %s, Base URL: %s", runAddr, resultAddr)
+	logger.Log.Sugar().Infof("File path: %s", filePath)
 	stor := storage.NewLinkStorage()
 	conf := config.NewServerConfig()
 	conf.SetConfig(runAddr, resultAddr)
