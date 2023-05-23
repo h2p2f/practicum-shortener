@@ -6,7 +6,7 @@ import (
 )
 
 type jsonLinks struct {
-	Uuid   int    `json:"uuid"`
+	UUID   int    `json:"uuid"`
 	Short  string `json:"short_url"`
 	Origin string `json:"original_url"`
 }
@@ -54,7 +54,7 @@ func (s *LinkStorage) GetAllSliced() [][]byte {
 	id := 1
 	for k, v := range s.links {
 		jsonData := jsonLinks{
-			Uuid:   id,
+			UUID:   id,
 			Short:  k,
 			Origin: v,
 		}

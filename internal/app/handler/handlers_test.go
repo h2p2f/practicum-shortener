@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"github.com/go-chi/chi/v5"
 	"github.com/h2p2f/practicum-shortener/internal/app/config"
+	"github.com/h2p2f/practicum-shortener/internal/app/logger"
 	"github.com/h2p2f/practicum-shortener/internal/app/storage"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStorageHandler_PostLinkHandler(t *testing.T) {
@@ -57,7 +59,12 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
 			c.SetConfig("localhost:8080", "localhost:8080")
-			handlers := NewStorageHandler(s, c, nil)
+			err := logger.InitLogger("debug")
+			if err != nil {
+				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
+			}
+			file := storage.NewFileDB("/tmp/1.txt", 2*time.Second, logger.Log)
+			handlers := NewStorageHandler(s, c, file)
 			if tt.method == http.MethodPost {
 				r.Post("/", handlers.PostLinkHandler)
 			} else {
@@ -122,7 +129,13 @@ func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
 			c.SetConfig("localhost:8080", "localhost:8080")
-			handlers := NewStorageHandler(s, c, nil)
+			err := logger.InitLogger("debug")
+			if err != nil {
+				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
+			}
+			file := storage.NewFileDB("/tmp/1.txt", 2*time.Second, logger.Log)
+			handlers := NewStorageHandler(s, c, file)
+			//handlers := NewStorageHandler(s, c, nil)
 			req.Header.Set("Content-Type", "text/plain")
 			postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(tt.link)))
 			w := httptest.NewRecorder()
