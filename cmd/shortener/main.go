@@ -79,9 +79,15 @@ func main() {
 	defer cancel()
 	data, err := fileDB.Read(ctx)
 	if err != nil {
-		fmt.Sprintf("error reading from file: %v", err)
+		fmt.Printf("error reading from file: %v", err)
 	} else {
 		stor.LoadAll(data)
+	}
+
+	data = stor.GetAllSliced()
+	err = fileDB.Write(ctx, data)
+	if err != nil {
+		fmt.Printf("error writing to file: %v", err)
 	}
 
 	go func() {
@@ -94,7 +100,7 @@ func main() {
 			//fmt.Println(data)
 			err := fileDB.Write(ctx, data)
 			if err != nil {
-				fmt.Sprintf("error writing to file: %v", err)
+				fmt.Printf("error writing to file: %v", err)
 			}
 		}
 	}()
