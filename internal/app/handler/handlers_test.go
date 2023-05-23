@@ -57,7 +57,7 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
 			c.SetConfig("localhost:8080", "localhost:8080")
-			handlers := NewStorageHandler(s, c)
+			handlers := NewStorageHandler(s, c, nil)
 			if tt.method == http.MethodPost {
 				r.Post("/", handlers.PostLinkHandler)
 			} else {
@@ -72,7 +72,7 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 	}
 }
 
-//rewrite this code!!!!!!!!!!!!!
+// rewrite this code!!!!!!!!!!!!!
 func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 	type want struct {
 		statusCode int
@@ -122,7 +122,7 @@ func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
 			c.SetConfig("localhost:8080", "localhost:8080")
-			handlers := NewStorageHandler(s, c)
+			handlers := NewStorageHandler(s, c, nil)
 			req.Header.Set("Content-Type", "text/plain")
 			postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(tt.link)))
 			w := httptest.NewRecorder()
