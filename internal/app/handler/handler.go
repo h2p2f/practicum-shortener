@@ -2,11 +2,14 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"io"
 	"math/rand"
 	"net/http"
+	"time"
 )
 
 // string of letters for random string generation
@@ -35,6 +38,7 @@ type Storager interface {
 	Delete(id string)
 	List() map[string]string
 	Count() int
+	GetAllSliced() [][]byte
 }
 
 // interface for config
@@ -44,17 +48,24 @@ type Configer interface {
 	GetResultAddress() string
 }
 
+type Filer interface {
+	Read(ctx context.Context) ([][]byte, error)
+	Write(ctx context.Context, links [][]byte) error
+}
+
 // handler for storage with config
 type StorageHandler struct {
 	storage Storager
 	config  Configer
+	file    Filer
 }
 
 // constructor of handler
-func NewStorageHandler(storage Storager, config Configer) *StorageHandler {
+func NewStorageHandler(storage Storager, config Configer, file Filer) *StorageHandler {
 	return &StorageHandler{
 		storage: storage,
 		config:  config,
+		file:    file,
 	}
 }
 
@@ -105,6 +116,7 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 			break
 		}
 	}
+	s.SaveToDB()
 }
 
 // GetLinkByIDHandler handler for get link by id
@@ -183,5 +195,16 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 			break
 		}
 	}
+	s.SaveToDB()
+}
 
+func (s *StorageHandler) SaveToDB() {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	data := s.storage.GetAllSliced()
+	//fmt.Println(data)
+	err := s.file.Write(ctx, data)
+	if err != nil {
+		fmt.Printf("error writing to file: %v", err)
+	}
 }

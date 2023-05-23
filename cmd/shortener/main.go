@@ -21,7 +21,7 @@ import (
 var runAddr, resultAddr, filePath string
 
 // shortenerRouter creates a http router for two handlers
-func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig) chi.Router {
+func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB) chi.Router {
 	//create a storage and config
 	//stor := storage.NewLinkStorage()
 	//conf := config.NewServerConfig()
@@ -30,7 +30,7 @@ func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig) chi.R
 	//message := fmt.Sprintf("Running Shortener. Server address: %s, Base URL: %s", s, r)
 	//fmt.Println(message)
 	//create a router and add handlers
-	handlers := handler.NewStorageHandler(stor, conf)
+	handlers := handler.NewStorageHandler(stor, conf, file)
 	c := chi.NewRouter()
 	//loggedRouter := c.With(logger.WithLogging)
 	loggedAndZippedRouter := c.With(logger.WithLogging, handler.GzipHanle)
@@ -84,27 +84,27 @@ func main() {
 		stor.LoadAll(data)
 	}
 
-	data = stor.GetAllSliced()
-	err = fileDB.Write(ctx, data)
-	if err != nil {
-		fmt.Printf("error writing to file: %v", err)
-	}
+	//data = stor.GetAllSliced()
+	//err = fileDB.Write(ctx, data)
+	//if err != nil {
+	//	fmt.Printf("error writing to file: %v", err)
+	//}
 
-	go func() {
-		for {
-			time.Sleep(storeInterval)
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-			defer cancel()
-
-			data := stor.GetAllSliced()
-			//fmt.Println(data)
-			err := fileDB.Write(ctx, data)
-			if err != nil {
-				fmt.Printf("error writing to file: %v", err)
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		time.Sleep(storeInterval)
+	//		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	//		defer cancel()
+	//
+	//		data := stor.GetAllSliced()
+	//		//fmt.Println(data)
+	//		err := fileDB.Write(ctx, data)
+	//		if err != nil {
+	//			fmt.Printf("error writing to file: %v", err)
+	//		}
+	//	}
+	//}()
 
 	//start server
-	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf)))
+	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB)))
 }
