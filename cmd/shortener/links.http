@@ -1,0 +1,15 @@
+POST http://localhost:8080/
+Content-Type: text/plain
+
+https://ya.ru
+
+###
+POST http://localhost:8080/
+
+###
+
+GET http://localhost:8080/XVlBzgba
+
+###
+
+GET http://localhost:8080/hTHctcuA
