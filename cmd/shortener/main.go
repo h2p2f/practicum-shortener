@@ -18,10 +18,10 @@ import (
 )
 
 // start up parameters
-var runAddr, resultAddr, filePath string
+var runAddr, resultAddr, filePath, databaseVar string
 
 // shortenerRouter creates a http router for two handlers
-func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB) chi.Router {
+func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB, db *storage.PGDB) chi.Router {
 	//create a storage and config
 	//stor := storage.NewLinkStorage()
 	//conf := config.NewServerConfig()
@@ -30,13 +30,14 @@ func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file 
 	//message := fmt.Sprintf("Running Shortener. Server address: %s, Base URL: %s", s, r)
 	//fmt.Println(message)
 	//create a router and add handlers
-	handlers := handler.NewStorageHandler(stor, conf, file)
+	handlers := handler.NewStorageHandler(stor, conf, file, db)
 	c := chi.NewRouter()
 	//loggedRouter := c.With(logger.WithLogging)
 	loggedAndZippedRouter := c.With(logger.WithLogging, handler.GzipHanle)
 	loggedAndZippedRouter.Post("/", handlers.PostLinkHandler)
 	loggedAndZippedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
 	loggedAndZippedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
+	loggedAndZippedRouter.Get("/ping", handlers.DBPing)
 	return c
 }
 func main() {
@@ -48,6 +49,9 @@ func main() {
 	flag.StringVar(&runAddr, "a", "localhost:8080", "address to run server on")
 	flag.StringVar(&resultAddr, "b", "localhost:8080", "link to return")
 	flag.StringVar(&filePath, "f", "/tmp/short-url-db.json", "path to file with links")
+	flag.StringVar(&databaseVar, "d",
+		"postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable",
+		"databaseVar to store metrics")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
@@ -58,6 +62,9 @@ func main() {
 	}
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		filePath = envFilePath
+	}
+	if envDatabaseVar := os.Getenv("DATABASE_DSN"); envDatabaseVar != "" {
+		databaseVar = envDatabaseVar
 	}
 	//cut protocol from resultAddr
 	sliceAddr := strings.Split(resultAddr, "//")
@@ -84,27 +91,8 @@ func main() {
 		stor.LoadAll(data)
 	}
 
-	//data = stor.GetAllSliced()
-	//err = fileDB.Write(ctx, data)
-	//if err != nil {
-	//	fmt.Printf("error writing to file: %v", err)
-	//}
-
-	//go func() {
-	//	for {
-	//		time.Sleep(storeInterval)
-	//		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	//		defer cancel()
-	//
-	//		data := stor.GetAllSliced()
-	//		//fmt.Println(data)
-	//		err := fileDB.Write(ctx, data)
-	//		if err != nil {
-	//			fmt.Printf("error writing to file: %v", err)
-	//		}
-	//	}
-	//}()
+	db := storage.NewPostgresDB(databaseVar, logger.Log)
 
 	//start server
-	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB)))
+	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB, db)))
 }
