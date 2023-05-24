@@ -63,6 +63,7 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			if err != nil {
 				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
 			}
+
 			file := storage.NewFileDB("/tmp/1.txt", 2*time.Second, logger.Log)
 			databaseVar := "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable"
 			db := storage.NewPostgresDB(databaseVar, logger.Log)
