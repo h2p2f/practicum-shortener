@@ -53,19 +53,25 @@ type Filer interface {
 	Write(ctx context.Context, links [][]byte) error
 }
 
+type Databaser interface {
+	PingContext(ctx context.Context) error
+}
+
 // handler for storage with config
 type StorageHandler struct {
-	storage Storager
-	config  Configer
-	file    Filer
+	storage  Storager
+	config   Configer
+	file     Filer
+	dataBase Databaser
 }
 
 // constructor of handler
-func NewStorageHandler(storage Storager, config Configer, file Filer) *StorageHandler {
+func NewStorageHandler(storage Storager, config Configer, file Filer, db Databaser) *StorageHandler {
 	return &StorageHandler{
-		storage: storage,
-		config:  config,
-		file:    file,
+		storage:  storage,
+		config:   config,
+		file:     file,
+		dataBase: db,
 	}
 }
 
@@ -206,5 +212,23 @@ func (s *StorageHandler) SaveToDB() {
 	err := s.file.Write(ctx, data)
 	if err != nil {
 		fmt.Printf("error writing to file: %v", err)
+	}
+}
+
+func (s *StorageHandler) DBPing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.dataBase.PingContext(ctx); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	_, err := w.Write([]byte("pong"))
+	if err != nil {
+		return
 	}
 }
