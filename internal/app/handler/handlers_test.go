@@ -58,7 +58,7 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
-			c.SetConfig("localhost:8080", "localhost:8080")
+			c.SetConfig("localhost:8080", "localhost:8080", false, false)
 			err := logger.InitLogger("debug")
 			if err != nil {
 				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
@@ -131,7 +131,7 @@ func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
-			c.SetConfig("localhost:8080", "localhost:8080")
+			c.SetConfig("localhost:8080", "localhost:8080", false, false)
 			err := logger.InitLogger("debug")
 			if err != nil {
 				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
