@@ -333,7 +333,7 @@ func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	fmt.Println(string(data))
 	_, err = w.Write(data)
 	if err != nil {
