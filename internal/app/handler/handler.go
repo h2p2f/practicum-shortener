@@ -86,6 +86,16 @@ type shortLink struct {
 	Link string `json:"result"`
 }
 
+type batchRequestLinks struct {
+	CorrelationId string `json:"correlation_id"`
+	OriginLink    string `json:"original_url"`
+}
+
+type batchResponseLinks struct {
+	CorrelationId string `json:"correlation_id"`
+	ShortLink     string `json:"short_url"`
+}
+
 // handler for get short link by request
 func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request) {
 	//check method
@@ -253,6 +263,60 @@ func (s *StorageHandler) DBPing(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 	_, err := w.Write([]byte("pong"))
+	if err != nil {
+		return
+	}
+}
+
+func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var buf bytes.Buffer
+	var reqLink []batchRequestLinks
+
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if buf.Len() == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = json.Unmarshal(buf.Bytes(), &reqLink)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	for _, link := range reqLink {
+		if s.config.UseDB() {
+			err := s.dataBase.InsertMetric(ctx, link.CorrelationId, link.OriginLink)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else if s.config.UseFile() {
+			s.storage.Set(link.CorrelationId, link.OriginLink)
+			s.SaveToDB()
+		}
+	}
+
+	var resLinks []batchResponseLinks
+	for _, link := range reqLink {
+		resLinks = append(resLinks, batchResponseLinks{link.CorrelationId, s.config.GetResultAddress() + "/" + link.CorrelationId})
+	}
+
+	data, err := json.Marshal(resLinks)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(data)
 	if err != nil {
 		return
 	}
