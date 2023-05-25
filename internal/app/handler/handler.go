@@ -87,12 +87,12 @@ type shortLink struct {
 }
 
 type batchRequestLinks struct {
-	CorrelationId string `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"`
 	OriginLink    string `json:"original_url"`
 }
 
 type batchResponseLinks struct {
-	CorrelationId string `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"`
 	ShortLink     string `json:"short_url"`
 }
 
@@ -278,6 +278,7 @@ func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
 
 	var buf bytes.Buffer
 	var reqLink []batchRequestLinks
+	var resLinks []batchResponseLinks
 
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
@@ -292,21 +293,37 @@ func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
+	sLink := "http://" + s.config.GetResultAddress() + "/"
 	for _, link := range reqLink {
+		uuid := ""
+		//generate random string and check if it is unique
+		for {
+			id := RandStringBytes(8)
+			if _, ok := s.storage.Get(id); ok {
+				//if not unique, generate new
+				continue
+			} else {
+				//if unique, write to storage and return short link
+				s.storage.Set(id, link.OriginLink)
+				resLinks = append(resLinks, batchResponseLinks{
+					link.CorrelationID,
+					sLink + id,
+				})
+
+			}
+			//break loop
+			uuid = id
+			break
+		}
 		if s.config.UseDB() {
-			err := s.dataBase.InsertMetric(ctx, link.CorrelationId, link.OriginLink)
+			err := s.dataBase.InsertMetric(ctx, uuid, link.OriginLink)
 			if err != nil {
 				fmt.Println(err)
 			}
 		} else if s.config.UseFile() {
-			s.storage.Set(link.CorrelationId, link.OriginLink)
+			s.storage.Set(uuid, link.OriginLink)
 			s.SaveToDB()
 		}
-	}
-
-	var resLinks []batchResponseLinks
-	for _, link := range reqLink {
-		resLinks = append(resLinks, batchResponseLinks{link.CorrelationId, s.config.GetResultAddress() + "/" + link.CorrelationId})
 	}
 
 	data, err := json.Marshal(resLinks)
