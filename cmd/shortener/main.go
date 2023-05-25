@@ -18,10 +18,21 @@ import (
 )
 
 // start up parameters
-var runAddr, resultAddr, filePath string
+var runAddr, resultAddr, filePath, databaseVar string
+var useDB, useFile bool
+
+func isFlagPassed(s string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == s {
+			found = true
+		}
+	})
+	return found
+}
 
 // shortenerRouter creates a http router for two handlers
-func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB) chi.Router {
+func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB, db *storage.PGDB) chi.Router {
 	//create a storage and config
 	//stor := storage.NewLinkStorage()
 	//conf := config.NewServerConfig()
@@ -30,25 +41,35 @@ func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file 
 	//message := fmt.Sprintf("Running Shortener. Server address: %s, Base URL: %s", s, r)
 	//fmt.Println(message)
 	//create a router and add handlers
-	handlers := handler.NewStorageHandler(stor, conf, file)
+	handlers := handler.NewStorageHandler(stor, conf, file, db)
 	c := chi.NewRouter()
 	//loggedRouter := c.With(logger.WithLogging)
 	loggedAndZippedRouter := c.With(logger.WithLogging, handler.GzipHanle)
 	loggedAndZippedRouter.Post("/", handlers.PostLinkHandler)
 	loggedAndZippedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
 	loggedAndZippedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
+	loggedAndZippedRouter.Get("/ping", handlers.DBPing)
+	loggedAndZippedRouter.Post("/api/shorten/batch", handlers.BatchMetrics)
 	return c
 }
 func main() {
 	if err := logger.InitLogger("info"); err != nil {
 		log.Fatal(err)
 	}
-
+	useDB = false
+	useFile = false
 	//get parameters from command line or environment variables
 	flag.StringVar(&runAddr, "a", "localhost:8080", "address to run server on")
 	flag.StringVar(&resultAddr, "b", "localhost:8080", "link to return")
 	flag.StringVar(&filePath, "f", "/tmp/short-url-db.json", "path to file with links")
+	flag.StringVar(&databaseVar, "d",
+		"postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable",
+		"databaseVar to store metrics")
 	flag.Parse()
+
+	if isFlagPassed("d") {
+		useDB = true
+	}
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
 		runAddr = envRunAddr
@@ -58,6 +79,11 @@ func main() {
 	}
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		filePath = envFilePath
+		useFile = true
+	}
+	if envDatabaseVar := os.Getenv("DATABASE_DSN"); envDatabaseVar != "" {
+		databaseVar = envDatabaseVar
+		useDB = true
 	}
 	//cut protocol from resultAddr
 	sliceAddr := strings.Split(resultAddr, "//")
@@ -69,7 +95,7 @@ func main() {
 	logger.Log.Sugar().Infof("File path: %s", filePath)
 	stor := storage.NewLinkStorage()
 	conf := config.NewServerConfig()
-	conf.SetConfig(runAddr, resultAddr)
+	conf.SetConfig(runAddr, resultAddr, useDB, useFile)
 
 	storeInterval := 30 * time.Second
 	fileDB := storage.NewFileDB(filePath, storeInterval, logger.Log)
@@ -84,27 +110,16 @@ func main() {
 		stor.LoadAll(data)
 	}
 
-	//data = stor.GetAllSliced()
-	//err = fileDB.Write(ctx, data)
-	//if err != nil {
-	//	fmt.Printf("error writing to file: %v", err)
-	//}
+	db := storage.NewPostgresDB(databaseVar, logger.Log)
 
-	//go func() {
-	//	for {
-	//		time.Sleep(storeInterval)
-	//		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	//		defer cancel()
-	//
-	//		data := stor.GetAllSliced()
-	//		//fmt.Println(data)
-	//		err := fileDB.Write(ctx, data)
-	//		if err != nil {
-	//			fmt.Printf("error writing to file: %v", err)
-	//		}
-	//	}
-	//}()
-
+	err = db.Create(ctx)
+	if err != nil {
+		fmt.Printf("error creating table: %v", err)
+	}
+	logger.Log.Sugar().Infof("Database: %s", databaseVar)
+	logger.Log.Sugar().Infof("Use database: %t", useDB)
+	logger.Log.Sugar().Infof("Use file: %t", useFile)
+	logger.Log.Sugar().Infof("Store interval: %s", storeInterval)
 	//start server
-	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB)))
+	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB, db)))
 }

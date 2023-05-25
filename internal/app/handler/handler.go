@@ -43,9 +43,11 @@ type Storager interface {
 
 // interface for config
 type Configer interface {
-	SetConfig(s, r string)
-	GetConfig() (string, string)
+	SetConfig(s, r string, f, d bool)
+	GetConfig() (string, string, bool, bool)
 	GetResultAddress() string
+	UseDB() bool
+	UseFile() bool
 }
 
 type Filer interface {
@@ -53,19 +55,26 @@ type Filer interface {
 	Write(ctx context.Context, links [][]byte) error
 }
 
+type Databaser interface {
+	PingContext(ctx context.Context) error
+	InsertMetric(ctx context.Context, id string, oLink string) (err error)
+}
+
 // handler for storage with config
 type StorageHandler struct {
-	storage Storager
-	config  Configer
-	file    Filer
+	storage  Storager
+	config   Configer
+	file     Filer
+	dataBase Databaser
 }
 
 // constructor of handler
-func NewStorageHandler(storage Storager, config Configer, file Filer) *StorageHandler {
+func NewStorageHandler(storage Storager, config Configer, file Filer, db Databaser) *StorageHandler {
 	return &StorageHandler{
-		storage: storage,
-		config:  config,
-		file:    file,
+		storage:  storage,
+		config:   config,
+		file:     file,
+		dataBase: db,
 	}
 }
 
@@ -75,6 +84,16 @@ type originLink struct {
 
 type shortLink struct {
 	Link string `json:"result"`
+}
+
+type batchRequestLinks struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginLink    string `json:"original_url"`
+}
+
+type batchResponseLinks struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortLink     string `json:"short_url"`
 }
 
 // handler for get short link by request
@@ -97,6 +116,7 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	uuid := ""
 	//generate random string and check if it is unique
 	for {
 		id := RandStringBytes(8)
@@ -112,11 +132,21 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
+			uuid = id
 			//break loop
 			break
 		}
 	}
-	s.SaveToDB()
+	if s.config.UseDB() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := s.dataBase.InsertMetric(ctx, uuid, string(requestBody))
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if s.config.UseFile() {
+		s.SaveToDB()
+	}
 }
 
 // GetLinkByIDHandler handler for get link by id
@@ -169,6 +199,7 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	result := shortLink{""}
+	uuid := ""
 	//generate random string and check if it is unique
 	for {
 		id := RandStringBytes(8)
@@ -192,10 +223,20 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			//break loop
+			uuid = id
 			break
 		}
 	}
-	s.SaveToDB()
+	if s.config.UseDB() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := s.dataBase.InsertMetric(ctx, uuid, string(origin.Link))
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if s.config.UseFile() {
+		s.SaveToDB()
+	}
 }
 
 func (s *StorageHandler) SaveToDB() {
@@ -206,5 +247,96 @@ func (s *StorageHandler) SaveToDB() {
 	err := s.file.Write(ctx, data)
 	if err != nil {
 		fmt.Printf("error writing to file: %v", err)
+	}
+}
+
+func (s *StorageHandler) DBPing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.dataBase.PingContext(ctx); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	_, err := w.Write([]byte("pong"))
+	if err != nil {
+		return
+	}
+}
+
+func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var buf bytes.Buffer
+	var reqLink []batchRequestLinks
+	var resLinks []batchResponseLinks
+
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	//if buf.Len() == 0 {
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
+	err = json.Unmarshal(buf.Bytes(), &reqLink)
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	sLink := "http://" + s.config.GetResultAddress() + "/"
+	for _, link := range reqLink {
+		uuid := ""
+		//generate random string and check if it is unique
+		for {
+			id := RandStringBytes(8)
+			if _, ok := s.storage.Get(id); ok {
+				//if not unique, generate new
+				continue
+			} else {
+				//if unique, write to storage and return short link
+				s.storage.Set(id, link.OriginLink)
+				resLinks = append(resLinks, batchResponseLinks{
+					link.CorrelationID,
+					sLink + id,
+				})
+
+			}
+			//break loop
+			uuid = id
+			break
+		}
+		if s.config.UseDB() {
+			err := s.dataBase.InsertMetric(ctx, uuid, link.OriginLink)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else if s.config.UseFile() {
+			s.storage.Set(uuid, link.OriginLink)
+			s.SaveToDB()
+		}
+	}
+
+	data, err := json.Marshal(resLinks)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	fmt.Println(string(data))
+	_, err = w.Write(data)
+	if err != nil {
+		return
 	}
 }

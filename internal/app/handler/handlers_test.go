@@ -58,13 +58,16 @@ func TestStorageHandler_PostLinkHandler(t *testing.T) {
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
-			c.SetConfig("localhost:8080", "localhost:8080")
+			c.SetConfig("localhost:8080", "localhost:8080", false, false)
 			err := logger.InitLogger("debug")
 			if err != nil {
 				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
 			}
+
 			file := storage.NewFileDB("/tmp/1.txt", 2*time.Second, logger.Log)
-			handlers := NewStorageHandler(s, c, file)
+			databaseVar := "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable"
+			db := storage.NewPostgresDB(databaseVar, logger.Log)
+			handlers := NewStorageHandler(s, c, file, db)
 			if tt.method == http.MethodPost {
 				r.Post("/", handlers.PostLinkHandler)
 			} else {
@@ -128,13 +131,15 @@ func TestStorageHandler_GetLinkByIDHandler(t *testing.T) {
 			r := chi.NewRouter()
 			s := storage.NewLinkStorage()
 			c := config.NewServerConfig()
-			c.SetConfig("localhost:8080", "localhost:8080")
+			c.SetConfig("localhost:8080", "localhost:8080", false, false)
 			err := logger.InitLogger("debug")
 			if err != nil {
 				t.Errorf("PostLinkHandler() got = %v, want %v", err, nil)
 			}
 			file := storage.NewFileDB("/tmp/1.txt", 2*time.Second, logger.Log)
-			handlers := NewStorageHandler(s, c, file)
+			databaseVar := "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable"
+			db := storage.NewPostgresDB(databaseVar, logger.Log)
+			handlers := NewStorageHandler(s, c, file, db)
 			//handlers := NewStorageHandler(s, c, nil)
 			req.Header.Set("Content-Type", "text/plain")
 			postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer([]byte(tt.link)))
