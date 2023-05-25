@@ -269,7 +269,7 @@ func (s *StorageHandler) DBPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -285,12 +285,13 @@ func (s *StorageHandler) BatchMetrics(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if buf.Len() == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	//if buf.Len() == 0 {
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	return
+	//}
 	err = json.Unmarshal(buf.Bytes(), &reqLink)
 	if err != nil {
+		fmt.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	sLink := "http://" + s.config.GetResultAddress() + "/"

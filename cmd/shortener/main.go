@@ -49,7 +49,7 @@ func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file 
 	loggedAndZippedRouter.Get("/{id}", handlers.GetLinkByIDHandler)
 	loggedAndZippedRouter.Post("/api/shorten", handlers.PostLinkAPIHandler)
 	loggedAndZippedRouter.Get("/ping", handlers.DBPing)
-	loggedAndZippedRouter.Get("/api/shorten/batch", handlers.BatchMetrics)
+	loggedAndZippedRouter.Post("/api/shorten/batch", handlers.BatchMetrics)
 	return c
 }
 func main() {
