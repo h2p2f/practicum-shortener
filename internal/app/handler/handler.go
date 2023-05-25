@@ -43,9 +43,11 @@ type Storager interface {
 
 // interface for config
 type Configer interface {
-	SetConfig(s, r string)
-	GetConfig() (string, string)
+	SetConfig(s, r string, f, d bool)
+	GetConfig() (string, string, bool, bool)
 	GetResultAddress() string
+	UseDB() bool
+	UseFile() bool
 }
 
 type Filer interface {
@@ -55,6 +57,7 @@ type Filer interface {
 
 type Databaser interface {
 	PingContext(ctx context.Context) error
+	InsertMetric(ctx context.Context, id string, oLink string) (err error)
 }
 
 // handler for storage with config
@@ -103,6 +106,7 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	uuid := ""
 	//generate random string and check if it is unique
 	for {
 		id := RandStringBytes(8)
@@ -118,11 +122,21 @@ func (s *StorageHandler) PostLinkHandler(w http.ResponseWriter, r *http.Request)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
+			uuid = id
 			//break loop
 			break
 		}
 	}
-	s.SaveToDB()
+	if s.config.UseDB() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := s.dataBase.InsertMetric(ctx, uuid, string(requestBody))
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if s.config.UseFile() {
+		s.SaveToDB()
+	}
 }
 
 // GetLinkByIDHandler handler for get link by id
@@ -175,6 +189,7 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	result := shortLink{""}
+	uuid := ""
 	//generate random string and check if it is unique
 	for {
 		id := RandStringBytes(8)
@@ -198,10 +213,20 @@ func (s *StorageHandler) PostLinkAPIHandler(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			//break loop
+			uuid = id
 			break
 		}
 	}
-	s.SaveToDB()
+	if s.config.UseDB() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		err := s.dataBase.InsertMetric(ctx, uuid, string(origin.Link))
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if s.config.UseFile() {
+		s.SaveToDB()
+	}
 }
 
 func (s *StorageHandler) SaveToDB() {

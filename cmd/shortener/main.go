@@ -19,6 +19,17 @@ import (
 
 // start up parameters
 var runAddr, resultAddr, filePath, databaseVar string
+var useDB, useFile bool
+
+func isFlagPassed(s string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == s {
+			found = true
+		}
+	})
+	return found
+}
 
 // shortenerRouter creates a http router for two handlers
 func shortenerRouter(stor *storage.LinkStorage, conf *config.ServerConfig, file *storage.FileDB, db *storage.PGDB) chi.Router {
@@ -44,7 +55,8 @@ func main() {
 	if err := logger.InitLogger("info"); err != nil {
 		log.Fatal(err)
 	}
-
+	useDB = false
+	useFile = false
 	//get parameters from command line or environment variables
 	flag.StringVar(&runAddr, "a", "localhost:8080", "address to run server on")
 	flag.StringVar(&resultAddr, "b", "localhost:8080", "link to return")
@@ -54,6 +66,10 @@ func main() {
 		"databaseVar to store metrics")
 	flag.Parse()
 
+	if isFlagPassed("d") {
+		useDB = true
+	}
+
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
 		runAddr = envRunAddr
 	}
@@ -62,9 +78,11 @@ func main() {
 	}
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		filePath = envFilePath
+		useFile = true
 	}
 	if envDatabaseVar := os.Getenv("DATABASE_DSN"); envDatabaseVar != "" {
 		databaseVar = envDatabaseVar
+		useDB = true
 	}
 	//cut protocol from resultAddr
 	sliceAddr := strings.Split(resultAddr, "//")
@@ -76,7 +94,7 @@ func main() {
 	logger.Log.Sugar().Infof("File path: %s", filePath)
 	stor := storage.NewLinkStorage()
 	conf := config.NewServerConfig()
-	conf.SetConfig(runAddr, resultAddr)
+	conf.SetConfig(runAddr, resultAddr, useDB, useFile)
 
 	storeInterval := 30 * time.Second
 	fileDB := storage.NewFileDB(filePath, storeInterval, logger.Log)
@@ -93,6 +111,14 @@ func main() {
 
 	db := storage.NewPostgresDB(databaseVar, logger.Log)
 
+	err = db.Create(ctx)
+	if err != nil {
+		fmt.Printf("error creating table: %v", err)
+	}
+	logger.Log.Sugar().Infof("Database: %s", databaseVar)
+	logger.Log.Sugar().Infof("Use database: %t", useDB)
+	logger.Log.Sugar().Infof("Use file: %t", useFile)
+	logger.Log.Sugar().Infof("Store interval: %s", storeInterval)
 	//start server
 	log.Fatal(http.ListenAndServe(runAddr, shortenerRouter(stor, conf, fileDB, db)))
 }

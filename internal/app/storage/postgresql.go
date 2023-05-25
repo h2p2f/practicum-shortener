@@ -79,22 +79,20 @@ func (pgdb *PGDB) Create(ctx context.Context) (err error) {
 	return nil
 }
 
-// InsertMetric is a function that inserts a metric into the database
-// used in write func
-//func (pgdb *PGDB) InsertMetric(ctx context.Context, id string, mtype string, delta *int64, value *float64) (err error) {
-//	query := `INSERT INTO metrics (id, mtype, delta, value)
-//					VALUES ($1, $2, $3, $4)
-//                    ON CONFLICT (id)
-//                    DO UPDATE SET
-//                    delta=excluded.delta,
-//                    value=excluded.value;`
-//	_, err = pgdb.db.ExecContext(ctx, query, id, mtype, delta, value)
-//	if err != nil {
-//		pgdb.logger.Sugar().Errorf("Error inserting metric: %v", err)
-//		return err
-//	}
-//	return nil
-//}
+func (pgdb *PGDB) InsertMetric(ctx context.Context, id string, oLink string) (err error) {
+	query := `INSERT INTO links (id, origin_link)
+					VALUES ($1, $2)
+                   ON CONFLICT (id)
+                   DO UPDATE SET
+                   id=excluded.id,
+                   origin_link=excluded.origin_link;`
+	_, err = pgdb.db.ExecContext(ctx, query, id, oLink)
+	if err != nil {
+		pgdb.logger.Sugar().Errorf("Error inserting metric: %v", err)
+		return err
+	}
+	return nil
+}
 
 // UpdateMetric is a function that updates a metric in the database
 // used in write func
